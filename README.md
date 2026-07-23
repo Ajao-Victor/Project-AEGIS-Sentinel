@@ -1,107 +1,134 @@
+Here is the complete, professional `README.md` file for Project AEGIS. It is structured to impress hackathon judges by clearly separating the clinical value proposition from the deep technical architecture, while providing foolproof installation steps.
 
-# Project AEGIS: Clinical Command Center 
+```markdown
+#  Project AEGIS: Live Clinical Event Sentinel
 
-Author: Victor Oluwatimileyin AJAO
+**Project AEGIS** is a real-time metabolic and Drug-Drug Interaction (DDI) screening microservice. Built directly on top of the **Ontomorph Digital Twin Platform (DTP) SDK**, AEGIS bridges the gap between raw clinical telemetry and actionable medical intelligence to intercept adverse patient events before they occur.
 
-Developed for Hackathon Demonstration.
+---
 
-Aegis Sentinel is an enterprise-grade, event-driven microservice and frontend dashboard designed for real-time clinical monitoring. It ingests simulated patient lab results, evaluates them against live active medication regimens using the HOLON API, and flags critical drug-drug or metabolic interactions. 
+##  The Clinical Vision
 
-Built with a focus on zero-PHI exposure and production-ready auditability, Aegis provides a high-fidelity "Command Center" interface to visualize systemic health threats as they occur.
+During active patient clerking and clinical ward rounds, the greatest risk to patient safety is often the "silent collision"—a newly resulted critical lab value (e.g., a spiking Potassium level) that intersects dangerously with an existing medication regimen. 
 
-##  System Architecture
+AEGIS eliminates the reliance on static, refresh-dependent dashboards. By streaming live Digital Twin telemetry, the AEGIS rules engine actively evaluates incoming LOINC lab codes against active RxNorm medication regimens, logging critical breaches and alerting providers in real-time.
 
-The system is separated into a robust backend processing engine and a responsive, dark-theme client application.
+---
 
-**Backend (Microservice API)**
-* **Framework:** NestJS / TypeScript
-* **Database:** PostgreSQL (via TypeORM)
-* **Caching:** Redis
-* **Clinical Intelligence:** Live HOLON API Integration (DTP Client)
+## 🏗️ System Architecture
 
-**Frontend (Client Dashboard)**
-* **Core:** React 18 + Vite
-* **Styling:** Tailwind CSS (v3.4) + Custom Cyber-Clinical Theme
-* **Icons:** Lucide React
+AEGIS is built as a highly decoupled, strictly typed full-stack architecture:
 
-##  Key Features
+*   **Frontend Client:** React + Vite + Tailwind CSS. A reactive dashboard that visualizes the Digital Twin state and simulates lab event ingestion.
+*   **API Gateway & Rules Engine:** NestJS (Node.js). Acts as the core orchestrator, processing HTTP events, querying the Ontomorph HOLON API, and executing metabolic threshold logic with graceful fallbacks.
+*   **Data Persistence Layer:** PostgreSQL + TypeORM. Ensures HIPAA-ready auditability by strictly saving all triggered `Incident` entities to a relational database.
+*   **Integration Ecosystem:** @ontomorph/dtp-sdk. Securely authenticates via OAuth2/Grant tokens to the Ontomorph Sandbox environment.
 
-* **Real-Time Lab Simulator:** Inject synthetic diagnostic events (e.g., cardiovascular LOINC codes) directly into the rules engine.
-* **Live DDI Screening:** Automates RxNorm resolution and screens for contraindications (e.g., Warfarin/Ibuprofen interactions) using external clinical intelligence.
-* **Persistent Audit Logging:** Securely writes formatted incident payloads to a PostgreSQL database to maintain clinical audit trails.
-* **Synthetic Patient Sandbox:** Utilizes a secure, OAuth2-synchronized test patient (`pt-8821-alpha-7x`) to ensure zero exposure of Protected Health Information (PHI) during demonstrations.
-* **Command Center UI:** A high-contrast, terminal-style interface for live system observability.
+---
 
-##  Getting Started
+##  Prerequisites
 
-### Prerequisites
-* Node.js (v18+)
-* PostgreSQL running locally
-* Redis server
+To run this application locally, judges will need the following installed:
+*   [Node.js](https://nodejs.org/) (v18+ recommended)
+*   [PostgreSQL](https://www.postgresql.org/) (Running locally on port 5432)
+*   An active **Ontomorph Sandbox Developer Account**
 
-### 1. Backend Setup (NestJS)
+---
 
-Navigate to the root directory and install dependencies:
+##  Local Installation & Setup
+
+### 1. Database Configuration
+Ensure your local PostgreSQL instance is running. Create a blank database for the application to use:
+```sql
+CREATE DATABASE aegis_db;
+
+```
+
+*(Note: TypeORM is configured with `synchronize: true` for this hackathon environment. The NestJS backend will automatically build the `incidents` table and apply schemas on boot).*
+
+### 2. Backend Initialization (NestJS)
+
+Navigate to the backend directory and install the dependencies:
+
 ```bash
+cd aegis-sentinel-api
 npm install
-Configure your environment variables. Create a .env file in the root directory:
 
-Code snippet
-# Database Configuration
+```
+
+Create a `.env` file in the root of the backend directory and populate it with your Ontomorph credentials and database config:
+
+```env
+# Database Config
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
-DB_PASSWORD=yourpassword
+DB_PASS=your_postgres_password
 DB_NAME=aegis_db
 
-# External APIs
-PATIENT_GRANT_TOKEN=your_holon_grant_token_here
-Start the backend microservice:
+# Ontomorph SDK Config (Sandbox)
+DTP_API_KEY=your_dtp_api_key
+HOLON_API_KEY=your_holon_api_key
+PATIENT_GRANT_TOKEN=your_patient_grant_token
 
-Bash
+```
+
+Start the backend server:
+
+```bash
 npm run start:dev
-The API will run on http://localhost:3000
 
-2. Frontend Setup (React/Vite)
-Open a new terminal window, navigate to the client directory, and install dependencies:
+```
 
-Bash
-cd client
+*The terminal will output successful connection logs to the database and the Ontomorph DTP Client.*
+
+### 3. Frontend Initialization (React/Vite)
+
+Open a new terminal window, navigate to the frontend directory, and install dependencies:
+
+```bash
+cd aegis-sentinel-ui
 npm install
-Start the frontend development server:
 
-Bash
+```
+
+Start the Vite development server:
+
+```bash
 npm run dev
-The Dashboard will run on http://localhost:5173
 
-💻 Usage / Demo Flow
-Open the Aegis Command Center at http://localhost:5173.
+```
 
-Observe the automated boot sequence synchronizing the synthetic patient profile.
+---
 
-Use the Lab Event Injector panel to transmit a simulated LOINC code (e.g., Potassium levels).
+##  Running the Live Demo
 
-Watch the Audit Stream as the backend evaluates the payload via the HOLON API.
-
-If an interaction is detected, the UI will flag the twin and display the structured PostgreSQL write-back confirmation.
-
- Data Structure
-Aegis formats raw engine results into professional, structured JSON payloads for database insertion. Example incident payload:
-
-JSON
-{
-  "twinId": "pt-8821-alpha-7x",
-  "triggeringSystem": "cardiovascular",
-  "labCode": "2823-3",
-  "labValue": 6.5,
-  "totalInteractions": 1,
-  "severityLevel": "HIGH",
-  "metadata": {
-    "medsScreened": 2
-  }
-}
+1. Open the UI in your browser (typically `http://localhost:5173`).
+2. Verify the **Active Digital Twin Profile** panel indicates a successful sync (e.g., Twin ID `mock-twin-123` is populated from the Sandbox).
+3. In the **Lab Event Injector**, the default payload is pre-configured for a metabolic panel:
+* **System:** cardiovascular
+* **LOINC Code:** 2823-3 (Potassium)
+* **Result Value:** 6.5
 
 
+4. Click **INJECT LAB RESULT**.
+5. **Observe the Results:**
+* The UI will dynamically stream the clinical alert severity (`CRITICAL`).
+* Check your NestJS backend terminal to view the real-time execution of the Rules Engine and the successful PostgreSQL database commit.
+* Check your local PostgreSQL database to view the fully typed audit payload saved in the `incidents` table.
+
+
+
+---
+
+##  Author
+
+**Victor Oluwatimilryin AJAO**
+*Full-Stack Systems Architect, Software Engineer & Clinical Medical Student, Obafemi Awolowo University*
+
+```
+
+```
 
 
 
