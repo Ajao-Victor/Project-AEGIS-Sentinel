@@ -9,6 +9,9 @@ interface LogEntry {
 }
 
 export default function App() {
+  // 🚀 THE FIX: Dynamically pull the Render URL from Vercel, fallback to localhost for local dev
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
   const [labData, setLabData] = useState({
     system: 'cardiovascular',
     code: '2823-3', // Potassium LOINC
@@ -39,10 +42,11 @@ export default function App() {
     const bootSequence = async () => {
       addLog('INFO', 'Aegis Sentinel UI Initialized.');
       await new Promise(r => setTimeout(r, 400));
-      addLog('INFO', 'Connecting to live clinical intelligence API...');
+      addLog('INFO', `Connecting to live clinical intelligence API at ${API_BASE_URL}...`);
       
       try {
-        const response = await fetch('http://localhost:3000/simulate/status');
+        // 🚀 THE FIX: Updated fetch URL
+        const response = await fetch(`${API_BASE_URL}/simulate/status`);
         const data = await response.json();
         
         if (data.connected) {
@@ -75,7 +79,8 @@ export default function App() {
     addLog('INFO', `[Ingestion] Transmitting LOINC ${labData.code} [Value: ${labData.value}] to Aegis Backend...`);
 
     try {
-      const response = await fetch('http://localhost:3000/simulate/lab', {
+      // 🚀 THE FIX: Updated fetch URL
+      const response = await fetch(`${API_BASE_URL}/simulate/lab`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(labData)
@@ -100,7 +105,6 @@ export default function App() {
         if (payload.totalInteractions > 0) {
           addLog('ERROR', `DANGER ALERT [${payload.severityLevel}]: ${payload.totalInteractions} critical drug interaction(s) identified.`);
           
-          // Print the exact API interaction details into the UI terminal
           if (payload.interactionsDetail && payload.interactionsDetail.length > 0) {
             payload.interactionsDetail.forEach((interaction: any) => {
                const severity = interaction.severity ? interaction.severity.toUpperCase() : 'HIGH';
@@ -124,7 +128,7 @@ export default function App() {
       }
 
     } catch (error) {
-      addLog('ERROR', 'Connection refused. Is the NestJS backend running?');
+      addLog('ERROR', 'Connection refused. Is the backend running?');
     } finally {
       setIsInjecting(false);
     }
