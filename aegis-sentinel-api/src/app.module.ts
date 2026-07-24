@@ -20,7 +20,7 @@ import { Incident } from './incidents/incident.entity';
         password: config.get<string>('DB_PASS'),
         database: config.get<string>('DB_NAME'),
         entities: [Incident],
-        synchronize: true, // Use only in dev/hackathon!
+        synchronize: true, 
       }),
     }),
     OntomorphModule,

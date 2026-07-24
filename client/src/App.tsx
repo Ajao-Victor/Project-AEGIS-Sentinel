@@ -11,7 +11,7 @@ interface LogEntry {
 export default function App() {
   const [labData, setLabData] = useState({
     system: 'cardiovascular',
-    code: '2823-3',
+    code: '2823-3', // Potassium LOINC
     value: '6.5',
     unit: 'mEq/L'
   });
@@ -19,6 +19,12 @@ export default function App() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isInjecting, setIsInjecting] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  const [twinInfo, setTwinInfo] = useState({
+    twinId: 'Connecting...',
+    authMode: 'Authenticating...',
+    medications: [] as Array<{ code: string; name: string }>
+  });
 
   const addLog = (type: LogEntry['type'], message: string) => {
     setLogs(prev => [...prev, {
@@ -29,27 +35,44 @@ export default function App() {
     }]);
   };
 
-  // Initial boot sequence effect
   useEffect(() => {
     const bootSequence = async () => {
       addLog('INFO', 'Aegis Sentinel UI Initialized.');
-      await new Promise(r => setTimeout(r, 600));
-      addLog('INFO', 'Connecting to live clinical intelligence API...'); // Changed 'local' to 'live'
-      await new Promise(r => setTimeout(r, 800));
-      addLog('SUCCESS', 'DTP Connection established. Synthetic Patient Twin [ID: 8821] synchronized.'); // Removed 'Mock'
+      await new Promise(r => setTimeout(r, 400));
+      addLog('INFO', 'Connecting to live clinical intelligence API...');
+      
+      try {
+        const response = await fetch('http://localhost:3000/simulate/status');
+        const data = await response.json();
+        
+        if (data.connected) {
+          setTwinInfo({
+            twinId: data.twinId,
+            authMode: data.authMode,
+            medications: data.medications
+          });
+          addLog('SUCCESS', `DTP Connection established. Live Digital Twin Synchronized [ID: ${data.twinId}].`);
+          if (data.medications.length === 0) {
+             addLog('WARN', 'Live twin currently has no active medication regimen on file.');
+          }
+        } else {
+          addLog('ERROR', 'DTP Connection failed: Twin not available.');
+        }
+      } catch (err) {
+        addLog('ERROR', 'Failed to retrieve live twin status from backend service.');
+      }
     };
     bootSequence();
   }, []);
 
-  // Auto-scroll logs
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-const handleSimulate = async (e: React.FormEvent) => {
+  const handleSimulate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsInjecting(true);
-    addLog('INFO', `[Ingestion] Transmitting LOINC ${labData.code} to Aegis Backend...`);
+    addLog('INFO', `[Ingestion] Transmitting LOINC ${labData.code} [Value: ${labData.value}] to Aegis Backend...`);
 
     try {
       const response = await fetch('http://localhost:3000/simulate/lab', {
@@ -60,150 +83,142 @@ const handleSimulate = async (e: React.FormEvent) => {
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       
-      // 1. Parse the real JSON response from your backend
       const result = await response.json(); 
+      const { alertTriggered, payload } = result;
       
-      addLog('WARN', 'Engine evaluating metabolic-drug interactions via HOLON API...');
+      addLog('INFO', 'Engine evaluating metabolic-drug interactions via Ontomorph HOLON API...');
       
-      setTimeout(() => {
-        // 2. Conditionally display the UI logs based on the real backend logic
-        if (result.alertTriggered) {
-          addLog('ERROR', `DANGER ALERT! ${result.payload.totalInteractions} critical interaction(s) identified.`);
-          
-          // Override the backend's "mock" ID with our synthetic production ID
-          addLog('SUCCESS', `[DB WRITE CONFIRMED] Synthetic Patient [pt-8821-alpha-7x] successfully flagged.`);
-          
-          // Format the payload into a clean, professional audit trail
-          const formattedAudit = `PostgreSQL Record -> System: ${result.payload.triggeringSystem.toUpperCase()} | LOINC: ${result.payload.labCode} | Value: ${result.payload.labValue} | Severity: ${result.payload.severityLevel}`;
-          addLog('INFO', formattedAudit);
-          
+      if (alertTriggered) {
+        if (payload.totalInteractions > 0) {
+          addLog('ERROR', `DANGER ALERT [${payload.severityLevel}]: ${payload.totalInteractions} critical drug interaction(s) identified.`);
         } else {
-          addLog('SUCCESS', 'Regimen screening clear. No interactions detected.');
+          addLog('ERROR', `CLINICAL ALERT [${payload.severityLevel}]: Critical metabolic threshold breached (Value: ${payload.labValue}).`);
         }
-        setIsInjecting(false);
-      }, 800); // 800ms delay just for dramatic UI effect
+        
+        addLog('SUCCESS', `[DB WRITE CONFIRMED] Digital Twin [${twinInfo.twinId}] incident safely stored in PostgreSQL.`);
+        addLog('WARN', `Audit Record -> System: ${payload.triggeringSystem.toUpperCase()} | LOINC: ${payload.labCode} | Value: ${payload.labValue} | Severity: ${payload.severityLevel}`);
+        
+      } else {
+        addLog('SUCCESS', `Screening clear. Value ${payload.labValue} is within safe metabolic limits and zero DDIs detected.`);
+      }
 
     } catch (error) {
       addLog('ERROR', 'Connection refused. Is the NestJS backend running?');
+    } finally {
       setIsInjecting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-aegis-bg text-aegis-textMain font-sans p-6 md:p-8 flex flex-col gap-6">
+    <div className="min-h-screen bg-[#020408] text-gray-300 font-sans p-6 md:p-8 flex flex-col gap-6">
       
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-aegis-border pb-4">
+      <header className="flex items-center justify-between border-b border-gray-800 pb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-aegis-cyanGlow rounded-lg border border-aegis-cyan/30">
-            <Shield className="w-6 h-6 text-aegis-cyan" />
+          <div className="p-2 bg-blue-900/20 rounded-lg border border-blue-500/30">
+            <Shield className="w-6 h-6 text-blue-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-wider text-white">AEGIS<span className="text-aegis-cyan">SENTINEL</span></h1>
-            <p className="text-xs text-aegis-textMuted font-mono uppercase tracking-widest">Clinical Event Microservice</p>
+            <h1 className="text-xl font-bold tracking-wider text-white">AEGIS<span className="text-blue-400">SENTINEL</span></h1>
+            <p className="text-xs text-gray-500 font-mono uppercase tracking-widest">Ontomorph Integrated Microservice</p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm font-mono">
           <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-aegis-cyan opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-aegis-cyan"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
           </span>
-          <span className="text-aegis-cyan">SYSTEM ONLINE</span>
+          <span className="text-blue-400">ONTOMORPH SDK ONLINE</span>
         </div>
       </header>
 
       <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
         
-        {/* Left Column: Twin Data & Injection */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           
-          {/* Mock Twin Profile Panel */}
-          <section className="bg-aegis-panel border border-aegis-border rounded-xl p-5 shadow-lg">
-            <div className="flex items-center gap-2 mb-4 text-white border-b border-aegis-border pb-2">
-              <User className="w-5 h-5 text-aegis-textMuted" />
-              <h2 className="font-semibold tracking-wide">Active Digital Twin</h2>
+          <section className="bg-[#0a0d14] border border-gray-800 rounded-xl p-5 shadow-lg">
+            <div className="flex items-center gap-2 mb-4 text-white border-b border-gray-800 pb-2">
+              <User className="w-5 h-5 text-gray-400" />
+              <h2 className="font-semibold tracking-wide">Live Digital Twin Profile</h2>
             </div>
             
             <div className="space-y-4 font-mono text-sm">
               <div className="flex justify-between items-center">
-                <span className="text-aegis-textMuted">ID:</span>
-                <span className="text-aegis-cyan bg-aegis-cyanGlow px-2 py-0.5 rounded">mock-twin-8821</span>
+                <span className="text-gray-500">Twin ID:</span>
+                <span className="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded text-xs truncate max-w-[160px]" title={twinInfo.twinId}>
+                  {twinInfo.twinId}
+                </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-aegis-textMuted">Auth Mode:</span>
-                <span className="text-yellow-500">Local Override</span>
+                <span className="text-gray-500">SDK Auth:</span>
+                <span className="text-green-400">{twinInfo.authMode}</span>
               </div>
               
               <div className="pt-2">
-                <span className="text-aegis-textMuted mb-2 block">Active Regimen (RxNorm):</span>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 bg-[#0a0e17] p-2 rounded border border-aegis-border">
-                    <Syringe className="w-4 h-4 text-aegis-textMuted" />
-                    <div>
-                      <div className="text-white">Warfarin</div>
-                      <div className="text-xs text-aegis-textMuted">Code: 11289</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 bg-[#0a0e17] p-2 rounded border border-aegis-border">
-                    <Syringe className="w-4 h-4 text-aegis-textMuted" />
-                    <div>
-                      <div className="text-white">Ibuprofen</div>
-                      <div className="text-xs text-aegis-textMuted">Code: 5640</div>
-                    </div>
-                  </div>
+                <span className="text-gray-500 mb-2 block">Active Regimen (RxNorm Check):</span>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {twinInfo.medications.length === 0 ? (
+                     <div className="text-gray-600 text-xs italic">No active medications found on Twin.</div>
+                  ) : (
+                    twinInfo.medications.map((med, index) => (
+                      <div key={index} className="flex items-center gap-2 bg-[#05070a] p-2 rounded border border-gray-800">
+                        <Syringe className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <div className="truncate">
+                          <div className="text-white truncate">{med.name}</div>
+                          <div className="text-xs text-gray-500 font-mono">Code: {med.code}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Lab Simulator Form */}
-          <section className="bg-aegis-panel border border-aegis-border rounded-xl p-5 shadow-lg relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-aegis-cyanGlow blur-3xl -mr-10 -mt-10 rounded-full pointer-events-none"></div>
-            
-            <div className="flex items-center gap-2 mb-4 text-white border-b border-aegis-border pb-2">
-              <Activity className="w-5 h-5 text-aegis-cyan" />
+          <section className="bg-[#0a0d14] border border-gray-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+            <div className="flex items-center gap-2 mb-4 text-white border-b border-gray-800 pb-2">
+              <Activity className="w-5 h-5 text-blue-400" />
               <h2 className="font-semibold tracking-wide">Lab Event Injector</h2>
             </div>
 
             <form onSubmit={handleSimulate} className="space-y-4 relative z-10">
               <div>
-                <label className="block text-xs font-mono text-aegis-textMuted mb-1">System</label>
+                <label className="block text-xs font-mono text-gray-500 mb-1">Triggering System</label>
                 <input 
                   type="text" 
                   value={labData.system}
                   onChange={e => setLabData({...labData, system: e.target.value})}
-                  className="w-full bg-[#0a0e17] border border-aegis-border rounded p-2 text-sm text-white focus:outline-none focus:border-aegis-cyan transition-colors"
+                  className="w-full bg-[#05070a] border border-gray-800 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono text-aegis-textMuted mb-1">LOINC Code</label>
+                  <label className="block text-xs font-mono text-gray-500 mb-1">LOINC Code</label>
                   <input 
                     type="text" 
                     value={labData.code}
                     onChange={e => setLabData({...labData, code: e.target.value})}
-                    className="w-full bg-[#0a0e17] border border-aegis-border rounded p-2 text-sm text-white focus:outline-none focus:border-aegis-cyan"
+                    className="w-full bg-[#05070a] border border-gray-800 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-aegis-textMuted mb-1">Unit</label>
+                  <label className="block text-xs font-mono text-gray-500 mb-1">Unit</label>
                   <input 
                     type="text" 
                     value={labData.unit}
                     onChange={e => setLabData({...labData, unit: e.target.value})}
-                    className="w-full bg-[#0a0e17] border border-aegis-border rounded p-2 text-sm text-white focus:outline-none focus:border-aegis-cyan"
+                    className="w-full bg-[#05070a] border border-gray-800 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-aegis-textMuted mb-1">Result Value</label>
+                <label className="block text-xs font-mono text-gray-500 mb-1">Result Value</label>
                 <input 
                   type="text" 
                   value={labData.value}
                   onChange={e => setLabData({...labData, value: e.target.value})}
-                  className="w-full bg-[#0a0e17] border border-aegis-border rounded p-2 text-lg text-white font-mono focus:outline-none focus:border-aegis-cyan"
+                  className="w-full bg-[#05070a] border border-gray-800 rounded p-2 text-lg text-white font-mono focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -212,8 +227,8 @@ const handleSimulate = async (e: React.FormEvent) => {
                 disabled={isInjecting}
                 className={`w-full mt-4 py-3 rounded-lg font-bold tracking-wide transition-all flex items-center justify-center gap-2
                   ${isInjecting 
-                    ? 'bg-aegis-border text-aegis-textMuted cursor-not-allowed' 
-                    : 'bg-aegis-cyan/10 text-aegis-cyan border border-aegis-cyan/50 hover:bg-aegis-cyan hover:text-black'
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                    : 'bg-blue-900/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500 hover:text-black'
                   }`}
               >
                 {isInjecting ? (
@@ -229,33 +244,34 @@ const handleSimulate = async (e: React.FormEvent) => {
           </section>
         </div>
 
-        {/* Right Column: Console Output */}
-        <div className="lg:col-span-8 bg-aegis-panel border border-aegis-border rounded-xl flex flex-col shadow-lg overflow-hidden">
-          <div className="bg-[#0f141e] px-4 py-3 border-b border-aegis-border flex items-center gap-2">
-            <TerminalSquare className="w-5 h-5 text-aegis-textMuted" />
-            <h2 className="font-mono text-sm tracking-wide text-aegis-textMuted">Aegis Audit Stream</h2>
+        <div className="lg:col-span-8 bg-[#0a0d14] border border-gray-800 rounded-xl flex flex-col shadow-lg overflow-hidden">
+          <div className="bg-[#05070a] px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TerminalSquare className="w-5 h-5 text-gray-500" />
+              <h2 className="font-mono text-sm tracking-wide text-gray-500">Aegis Server Stream (Real-Time)</h2>
+            </div>
           </div>
           
-          <div className="flex-1 p-4 font-mono text-sm overflow-y-auto max-h-[600px] bg-[#05070a]">
+          <div className="flex-1 p-4 font-mono text-sm overflow-y-auto max-h-[600px] bg-[#020408]">
             {logs.length === 0 ? (
-              <div className="text-aegis-textMuted italic">Awaiting events...</div>
+              <div className="text-gray-600 italic">Awaiting network events...</div>
             ) : (
               <div className="space-y-2">
                 {logs.map((log) => (
                   <div key={log.id} className="flex gap-3 leading-relaxed">
-                    <span className="text-aegis-border select-none">[{log.timestamp}]</span>
-                    <span className={`w-16 flex-shrink-0 font-bold ${
+                    <span className="text-gray-700 select-none">[{log.timestamp}]</span>
+                    <span className={`w-20 flex-shrink-0 font-bold ${
                       log.type === 'INFO' ? 'text-blue-400' :
                       log.type === 'WARN' ? 'text-yellow-400' :
-                      log.type === 'ERROR' ? 'text-aegis-danger' :
+                      log.type === 'ERROR' ? 'text-red-500' :
                       'text-green-400'
                     }`}>
                       {log.type}
                     </span>
                     <span className={`flex-1 break-words ${
-                      log.type === 'ERROR' ? 'text-aegis-danger' :
-                      log.type === 'WARN' ? 'text-yellow-100' :
-                      'text-aegis-textMain'
+                      log.type === 'ERROR' ? 'text-red-400 font-semibold' :
+                      log.type === 'WARN' ? 'text-yellow-200' :
+                      'text-gray-300'
                     }`}>
                       {log.message}
                     </span>
