@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Variants } from 'framer-motion'; // 🚀 THE FIX: Strict type import
 import { Shield, Activity, Database, User, Syringe, TerminalSquare, Cpu, Server, Zap } from 'lucide-react';
 
 interface LogEntry {
@@ -60,8 +59,8 @@ const StarField = React.memo(() => {
   );
 });
 
-// Explicitly typed as Framer Motion 'Variants'
-const staggerContainer: Variants = {
+// 🚀 THE FIX: Removed the 'Variants' type entirely and used 'as const' to satisfy strict TypeScript
+const staggerContainer = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
@@ -69,18 +68,18 @@ const staggerContainer: Variants = {
   }
 };
 
-const cardVariant: Variants = {
+const cardVariant = {
   hidden: { opacity: 0, y: 20 },
   show: { 
     opacity: 1, 
     y: 0,
-    transition: { type: 'spring', stiffness: 300, damping: 24 }
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 } // <-- Added 'as const'
   }
 };
 
-const logVariant: Variants = {
+const logVariant = {
   hidden: { opacity: 0, x: -10, scale: 0.95 },
-  show: { opacity: 1, x: 0, scale: 1, transition: { duration: 0.2, ease: "easeOut" } }
+  show: { opacity: 1, x: 0, scale: 1, transition: { duration: 0.2, ease: "easeOut" as const } } // <-- Added 'as const'
 };
 
 export default function App() {
