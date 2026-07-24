@@ -88,13 +88,34 @@ export default function App() {
       
       addLog('INFO', 'Engine evaluating metabolic-drug interactions via Ontomorph HOLON API...');
       
+      // 1. DDI Screening Status Updates
+      if (twinInfo.medications.length < 2) {
+        addLog('INFO', `HOLON Screening Skipped: Patient is on ${twinInfo.medications.length} medication(s). No DDI possible.`);
+      } else {
+        addLog('INFO', `HOLON Screening Complete: ${payload.totalInteractions} interaction(s) detected.`);
+      }
+
       if (alertTriggered) {
+        // 2. Log Drug Interactions if they exist
         if (payload.totalInteractions > 0) {
           addLog('ERROR', `DANGER ALERT [${payload.severityLevel}]: ${payload.totalInteractions} critical drug interaction(s) identified.`);
-        } else {
+          
+          // Print the exact API interaction details into the UI terminal
+          if (payload.interactionsDetail && payload.interactionsDetail.length > 0) {
+            payload.interactionsDetail.forEach((interaction: any) => {
+               const severity = interaction.severity ? interaction.severity.toUpperCase() : 'HIGH';
+               const desc = interaction.description || 'Pharmacological conflict detected between active regimen components.';
+               addLog('WARN', `-> DDI Detail [${severity}]: ${desc}`);
+            });
+          }
+        } 
+        
+        // 3. Log Metabolic Lab Alerts
+        if (parseFloat(payload.labValue) >= 5.5) {
           addLog('ERROR', `CLINICAL ALERT [${payload.severityLevel}]: Critical metabolic threshold breached (Value: ${payload.labValue}).`);
         }
         
+        // 4. Log Database Confirmation
         addLog('SUCCESS', `[DB WRITE CONFIRMED] Digital Twin [${twinInfo.twinId}] incident safely stored in PostgreSQL.`);
         addLog('WARN', `Audit Record -> System: ${payload.triggeringSystem.toUpperCase()} | LOINC: ${payload.labCode} | Value: ${payload.labValue} | Severity: ${payload.severityLevel}`);
         
