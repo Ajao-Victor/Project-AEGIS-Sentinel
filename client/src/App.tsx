@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Shield, Activity, Database, User, Syringe, TerminalSquare, Cpu, Server, Zap } from 'lucide-react';
 
 interface LogEntry {
@@ -59,8 +59,8 @@ const StarField = React.memo(() => {
   );
 });
 
-// --- Animation Variants ---
-const staggerContainer = {
+// 🚀 THE FIX: Explicitly type these objects as Framer Motion 'Variants'
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
@@ -68,7 +68,7 @@ const staggerContainer = {
   }
 };
 
-const cardVariant = {
+const cardVariant: Variants = {
   hidden: { opacity: 0, y: 20 },
   show: { 
     opacity: 1, 
@@ -77,15 +77,12 @@ const cardVariant = {
   }
 };
 
-const logVariant = {
+const logVariant: Variants = {
   hidden: { opacity: 0, x: -10, scale: 0.95 },
   show: { opacity: 1, x: 0, scale: 1, transition: { duration: 0.2, ease: "easeOut" } }
 };
 
 export default function App() {
-  // 🚀 BULLETPROOF DYNAMIC URL:
-  // Vite automatically sets import.meta.env.PROD to true when Vercel builds the site.
-  // This bypasses the need for Vercel Environment Variables entirely.
   const API_BASE_URL = import.meta.env.PROD 
     ? 'https://project-aegis-sentinel.onrender.com' 
     : 'http://localhost:3000';
