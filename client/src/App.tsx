@@ -9,6 +9,11 @@ interface LogEntry {
   message: string;
 }
 
+interface InteractionDetail {
+  severity?: string;
+  description?: string;
+}
+
 // --- High-Performance Animated Starfield ---
 const StarField = React.memo(() => {
   const [stars, setStars] = useState<{ id: number; x: number; y: number; size: number; duration: number; delay: number }[]>([]);
@@ -78,7 +83,12 @@ const logVariant = {
 };
 
 export default function App() {
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  // 🚀 BULLETPROOF DYNAMIC URL:
+  // Vite automatically sets import.meta.env.PROD to true when Vercel builds the site.
+  // This bypasses the need for Vercel Environment Variables entirely.
+  const API_BASE_URL = import.meta.env.PROD 
+    ? 'https://project-aegis-sentinel.onrender.com' 
+    : 'http://localhost:3000';
 
   const [labData, setLabData] = useState({
     system: 'cardiovascular',
@@ -169,7 +179,7 @@ export default function App() {
         if (payload.totalInteractions > 0) {
           addLog('ERROR', `DANGER ALERT [${payload.severityLevel}]: ${payload.totalInteractions} critical drug interaction(s) identified.`);
           if (payload.interactionsDetail && payload.interactionsDetail.length > 0) {
-            payload.interactionsDetail.forEach((interaction: any) => {
+            payload.interactionsDetail.forEach((interaction: InteractionDetail) => {
                const severity = interaction.severity ? interaction.severity.toUpperCase() : 'HIGH';
                const desc = interaction.description || 'Pharmacological conflict detected between active regimen components.';
                addLog('WARN', `-> DDI Detail [${severity}]: ${desc}`);
@@ -214,7 +224,6 @@ export default function App() {
   };
 
   return (
-    // Applied requested rgb(88,90,94) background
     <div className="min-h-screen bg-[rgb(88,90,94)] text-gray-100 font-sans p-4 md:p-8 flex flex-col gap-6 selection:bg-blue-500/40 relative">
       
       <StarField />
@@ -263,7 +272,7 @@ export default function App() {
         {/* Left Column (Controls & Profile) */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           
-          {/* Profile Card - Updated to sleek dark glass */}
+          {/* Profile Card */}
           <motion.section variants={cardVariant} className="bg-black/20 border border-white/20 rounded-2xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.25)] backdrop-blur-xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/10 rounded-full blur-3xl -mr-10 -mt-10 transition-opacity group-hover:bg-blue-400/20" />
             
