@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion'; // 🚀 THE FIX: Strict type import
 import { Shield, Activity, Database, User, Syringe, TerminalSquare, Cpu, Server, Zap } from 'lucide-react';
 
 interface LogEntry {
@@ -59,7 +60,7 @@ const StarField = React.memo(() => {
   );
 });
 
-// 🚀 THE FIX: Explicitly type these objects as Framer Motion 'Variants'
+// Explicitly typed as Framer Motion 'Variants'
 const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   show: {
